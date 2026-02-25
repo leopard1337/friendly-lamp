@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AuthNonce {
+  id        String   @id @default(cuid())
+  address   String
+  nonce     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([address])
+}
+
+model Wallet {
+  id            String   @id @default(cuid())
+  address       String   @unique
+  chain         String   // "solana" | "evm"
+  createdAt     DateTime @default(now())
+
+  workspacesOwned Workspace[]       @relation("WorkspaceOwner")
+  memberships    WorkspaceMember[]
+}
+
+model Workspace {
+  id            String   @id @default(cuid())
+  name          String
+  tokenContract String
+  chain         String   // "solana" | "evm"
+  ownerWalletId String
+  ownerWallet   Wallet   @relation("WorkspaceOwner", fields: [ownerWalletId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  members    WorkspaceMember[]
+  campaigns  Campaign[]
+  kolDeals   KolDeal[]
+  snapshots  HolderSnapshot[]
+  communityStats CommunityStat[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  walletId    String
+  role        String   // "owner" | "admin" | "editor" | "viewer"
+  status      String   @default("active") // "active" | "invited" | "removed"
+  invitedAt   DateTime?
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  wallet    Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, walletId])
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String   // "launch" | "kol" | "community" | "other"
+  startedAt   DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  kolDeals    KolDeal[]
+}
+
+model KolDeal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaignId  String?   // optional link to campaign
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  walletOfKol String
+  paidAmount  Decimal  @db.Decimal(18, 6)
+  date        DateTime
+  txid        String?  // transaction ID for on-chain verification
+  platform    String?  // "telegram" | "twitter" | "discord" | etc
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model HolderSnapshot {
+  workspaceId        String
+  timestamp          DateTime
+  holderCount        Int
+  top10Concentration Float?
+  healthScore        Float?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, timestamp])
+}
+
+model CommunityStat {
+  workspaceId   String
+  timestamp     DateTime
+  telegramCount Int?
+  discordCount Int?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, timestamp])
+}
