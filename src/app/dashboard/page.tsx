@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { trpc } from "@/trpc/client";
 import { ConnectWallet } from "@/components/ConnectWallet";
 import { CopyButton } from "@/components/CopyButton";
@@ -28,10 +29,13 @@ function getGreeting(): string {
 }
 
 export default function DashboardPage() {
+  const [mounted, setMounted] = useState(false);
   const { data: session } = trpc.auth.me.useQuery();
   const { data: workspaces, isLoading } = trpc.workspace.list.useQuery(undefined, {
     enabled: !!session,
   });
+
+  useEffect(() => setMounted(true), []);
 
   if (!session) {
     return (
@@ -205,7 +209,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    <span className="label-muted">
+                    <span className="label-muted" suppressHydrationWarning>
                       {ws.latestSnapshot?.timestamp
                         ? `Updated ${formatTimeAgo(new Date(ws.latestSnapshot.timestamp))}`
                         : "Never synced"}

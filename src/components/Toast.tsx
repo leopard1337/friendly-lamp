@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type ToastContextValue = (message: string) => void;
@@ -13,7 +13,10 @@ export function useToast() {
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+
+  useEffect(() => setMounted(true), []);
 
   const toast = useCallback((message: string) => {
     const id = Date.now();
@@ -26,7 +29,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      {typeof document !== "undefined" &&
+      {mounted &&
+        typeof document !== "undefined" &&
         createPortal(
           <div
             className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-2"
