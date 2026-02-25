@@ -46,6 +46,20 @@ html {
   overflow-x: hidden;
 }
 
+/* Focus styles for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 body {
   background: var(--bg-base);
   color: #e0e0e0;

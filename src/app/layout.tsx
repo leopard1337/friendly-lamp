@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/trpc/Provider";
+import { ToastProvider } from "@/components/Toast";
 import { WalletProvider } from "@/components/WalletProvider";
 
 const inter = Inter({
@@ -23,8 +24,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -38,7 +37,9 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased`}
       >
         <TRPCProvider>
-          <WalletProvider>{children}</WalletProvider>
+          <ToastProvider>
+            <WalletProvider>{children}</WalletProvider>
+          </ToastProvider>
         </TRPCProvider>
       </body>
     </html>

@@ -36,11 +36,13 @@ model Workspace {
   ownerWallet   Wallet   @relation("WorkspaceOwner", fields: [ownerWalletId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 
-  members    WorkspaceMember[]
-  campaigns  Campaign[]
-  kolDeals   KolDeal[]
-  snapshots  HolderSnapshot[]
-  communityStats CommunityStat[]
+  members          WorkspaceMember[]
+  campaigns        Campaign[]
+  kolDeals         KolDeal[]
+  snapshots        HolderSnapshot[]
+  communityStats   CommunityStat[]
+  alerts           Alert[]
+  alertNotifications AlertNotification[]
 }
 
 model WorkspaceMember {
@@ -104,4 +106,34 @@ model CommunityStat {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([workspaceId, timestamp])
+}
+
+model Alert {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type          String    // "holder_count" | "health_score"
+  operator      String    // "above" | "below"
+  threshold     Float
+  lastTriggered DateTime?
+  createdAt     DateTime  @default(now())
+
+  notifications AlertNotification[]
+
+  @@index([workspaceId])
+}
+
+model AlertNotification {
+  id          String   @id @default(cuid())
+  workspaceId String
+  alertId     String
+  alert       Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  message     String
+  value       Float?   // holder count or health score when triggered
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([createdAt])
 }

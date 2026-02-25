@@ -50,9 +50,13 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Token lookup error:", err);
     const message = err instanceof Error ? err.message : "Lookup failed";
-    return NextResponse.json(
-      { error: message.includes("Helius") ? "Token not found or RPC error. Try again." : message },
-      { status: 500 }
-    );
+    const isNotFound = /not found|404|invalid|does not exist/i.test(message);
+    const isRpc = /helius|rpc|timeout|fetch/i.test(message);
+    const userMessage = isNotFound
+      ? "Token not found. Check the mint address and try again."
+      : isRpc
+        ? "Token not found or RPC error. Try again later."
+        : message;
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }

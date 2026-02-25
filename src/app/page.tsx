@@ -1,13 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { trpc } from "@/trpc/client";
 import { ConnectWallet } from "@/components/ConnectWallet";
-import Squares from "@/components/Squares";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { SplitText } from "@/components/SplitText";
 import { Typewriter } from "@/components/Typewriter";
 import Link from "next/link";
 import Image from "next/image";
+import { SolanaPrice } from "@/components/SolanaPrice";
+
+const Squares = dynamic(() => import("@/components/Squares").then((m) => m.default), { ssr: false });
 
 const FEATURES = [
   {
@@ -39,8 +42,8 @@ export default function Home() {
         />
       </div>
       <header className="relative z-10 border-b border-zinc-800/50 bg-zinc-950/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <h1 className="flex items-center gap-3 text-xl font-semibold tracking-tight text-zinc-100">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <h1 className="flex shrink-0 items-center gap-3 text-xl font-semibold tracking-tight text-zinc-100">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800/60 text-zinc-400 ring-1 ring-zinc-700/40">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 3v18h18" />
@@ -49,6 +52,9 @@ export default function Home() {
             </span>
             Token Analytics
           </h1>
+          <div className="flex flex-1 justify-center">
+            <SolanaPrice />
+          </div>
           <ConnectWallet />
         </div>
       </header>
@@ -101,7 +107,7 @@ export default function Home() {
                 width={16}
                 height={16}
                 className="shrink-0"
-                loading="lazy"
+                priority
               />
               Solana
             </span>
@@ -116,7 +122,10 @@ export default function Home() {
               )}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-sm text-white">
+          <div className="flex shrink-0 items-center justify-center">
+            <SolanaPrice />
+          </div>
+          <div className="flex items-center gap-4 text-sm text-white sm:justify-end">
             <a
               href="https://github.com"
               target="_blank"

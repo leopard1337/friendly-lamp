@@ -11,8 +11,9 @@ import { ConnectWallet } from "@/components/ConnectWallet";
 import { CopyButton } from "@/components/CopyButton";
 import { HolderChart } from "@/components/HolderChart";
 import { TeamDropdown } from "@/components/TeamDropdown";
-import { ListItemSkeleton } from "@/components/Skeleton";
+import { ListItemSkeleton, WorkspacePageSkeleton } from "@/components/Skeleton";
 import { formatPrice } from "@/lib/format";
+import { useToast } from "@/components/Toast";
 
 function CampaignIcon({ type }: { type: string }) {
   const icons: Record<string, React.ReactElement> = {
@@ -51,6 +52,7 @@ function CampaignIcon({ type }: { type: string }) {
 
 export default function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const toast = useToast();
   const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [showKolForm, setShowKolForm] = useState(false);
   const [showCommunityForm, setShowCommunityForm] = useState(false);
@@ -60,6 +62,8 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const [openCampaignMenuId, setOpenCampaignMenuId] = useState<string | null>(null);
   const [campaignMenuPosition, setCampaignMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [kolSearch, setKolSearch] = useState("");
   const utils = trpc.useUtils();
   const { data: session } = trpc.auth.me.useQuery();
   const { data: workspace, isLoading } = trpc.workspace.getById.useQuery(
@@ -85,6 +89,30 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
         : undefined,
     [snapshots]
   );
+  const filteredCampaigns = useMemo(() => {
+    if (!campaigns) return [];
+    const q = campaignSearch.trim().toLowerCase();
+    if (!q) return campaigns;
+    return campaigns.filter(
+      (c) =>
+        c.type.toLowerCase().includes(q) ||
+        (c.notes?.toLowerCase().includes(q) ?? false) ||
+        new Date(c.startedAt).toLocaleDateString().toLowerCase().includes(q)
+    );
+  }, [campaigns, campaignSearch]);
+  const filteredKolDeals = useMemo(() => {
+    if (!kolDeals) return [];
+    const q = kolSearch.trim().toLowerCase();
+    if (!q) return kolDeals;
+    return kolDeals.filter(
+      (k) =>
+        k.walletOfKol.toLowerCase().includes(q) ||
+        (k.platform?.toLowerCase().includes(q) ?? false) ||
+        (k.notes?.toLowerCase().includes(q) ?? false) ||
+        String(k.paidAmount).includes(q) ||
+        new Date(k.date).toLocaleDateString().toLowerCase().includes(q)
+    );
+  }, [kolDeals, kolSearch]);
   const { data: communityStats } = trpc.community.list.useQuery(
     { workspaceId: id, limit: 30 },
     { enabled: !!session && !!workspace }
@@ -101,12 +129,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
     onSuccess: () => {
       utils.campaign.list.invalidate({ workspaceId: id });
       setShowCampaignForm(false);
+      toast("Campaign created");
     },
   });
   const updateCampaign = trpc.campaign.update.useMutation({
     onSuccess: () => {
       utils.campaign.list.invalidate({ workspaceId: id });
       setEditingCampaignId(null);
+      toast("Campaign saved");
     },
   });
   const deleteCampaign = trpc.campaign.delete.useMutation({
@@ -119,12 +149,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
     onSuccess: () => {
       utils.kol.list.invalidate({ workspaceId: id });
       setShowKolForm(false);
+      toast("KOL deal added");
     },
   });
   const updateKol = trpc.kol.update.useMutation({
     onSuccess: () => {
       utils.kol.list.invalidate({ workspaceId: id });
       setEditingKolId(null);
+      toast("KOL deal saved");
     },
   });
   const deleteKol = trpc.kol.delete.useMutation({
@@ -136,12 +168,14 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   const runSnapshot = trpc.snapshot.run.useMutation({
     onSuccess: () => {
       utils.snapshot.list.invalidate({ workspaceId: id });
+      toast("Snapshot captured");
     },
   });
   const createCommunityStat = trpc.community.create.useMutation({
     onSuccess: () => {
       utils.community.list.invalidate({ workspaceId: id });
       setShowCommunityForm(false);
+      toast("Community snapshot added");
     },
   });
 
@@ -155,26 +189,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
   }
 
   if (isLoading || !workspace) {
-    return (
-      <div className="space-y-8">
-        <div className="h-8 w-48 animate-pulse rounded bg-zinc-800" />
-        <div className="h-64 animate-pulse rounded-xl bg-zinc-800/50" />
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div className="space-y-3">
-            <div className="h-5 w-32 animate-pulse rounded bg-zinc-800" />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-          </div>
-          <div className="space-y-3">
-            <div className="h-5 w-32 animate-pulse rounded bg-zinc-800" />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-            <ListItemSkeleton />
-          </div>
-        </div>
-      </div>
-    );
+    return <WorkspacePageSkeleton />;
   }
 
   return (
@@ -211,7 +226,27 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             </span>
           </p>
         </div>
-        <TeamDropdown workspaceId={id} isAdmin={teamData?.isAdmin ?? false} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const url = `${typeof window !== "undefined" ? window.location.origin : ""}/api/og/workspace/${id}`;
+              void navigator.clipboard.writeText(url);
+              toast("Snapshot image link copied");
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-600/60 bg-zinc-800/40 px-3.5 py-2 text-sm font-medium text-zinc-400 transition-all hover:border-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-200 active:scale-[0.98]"
+            title="Copy shareable snapshot image link"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" />
+            </svg>
+            Share
+          </button>
+          <TeamDropdown workspaceId={id} isAdmin={teamData?.isAdmin ?? false} />
+        </div>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -286,12 +321,13 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
       <section className="mb-12">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zinc-200">Holder Growth & Health Score</h2>
-          {workspace.chain === "solana" && (
-            <button
-              onClick={() => runSnapshot.mutate({ workspaceId: id })}
-              disabled={runSnapshot.isPending}
-              className="rounded-xl border border-zinc-600/80 bg-zinc-800/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 active:scale-[0.98] disabled:opacity-50"
-            >
+            {workspace.chain === "solana" && (
+              <button
+                onClick={() => runSnapshot.mutate({ workspaceId: id })}
+                disabled={runSnapshot.isPending}
+                className="rounded-xl border border-zinc-600/80 bg-zinc-800/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 active:scale-[0.98] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                aria-label="Refresh holders"
+              >
               {runSnapshot.isPending ? "Capturing…" : "Refresh holders"}
             </button>
           )}
@@ -339,7 +375,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               />
             </>
           )}
-          {campaigns?.length === 0 && !showCampaignForm && !editingCampaignId ? (
+          {filteredCampaigns.length === 0 && !showCampaignForm && !editingCampaignId ? (
             <div className="flex flex-col items-center rounded-xl border border-dashed border-zinc-700/80 py-12 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-800/60 ring-1 ring-zinc-700/50">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-500">
@@ -347,9 +383,9 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                   <line x1="4" y1="22" x2="4" y2="15" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-zinc-400">No campaigns yet</p>
-              <p className="mt-1 text-xs text-zinc-600">Track launches, KOL pushes, and community efforts</p>
-              {teamData?.canEdit && (
+              <p className="text-sm font-medium text-zinc-400">{campaignSearch.trim() ? "No matching campaigns" : "No campaigns yet"}</p>
+              <p className="mt-1 text-xs text-zinc-600">{campaignSearch.trim() ? "Try a different search" : "Track launches, KOL pushes, and community efforts"}</p>
+              {teamData?.canEdit && !campaignSearch.trim() && (
                 <button
                   onClick={() => setShowCampaignForm(true)}
                   className="mt-4 text-sm font-medium text-violet-400 transition-colors hover:text-violet-300"
@@ -359,9 +395,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               )}
             </div>
           ) : (
-            <div className="dashboard-panel-list">
+            <div className="dashboard-panel-list min-h-0 flex-1">
+              {campaigns && campaigns.length > 2 && (
+                <input
+                  type="search"
+                  placeholder="Search campaigns…"
+                  value={campaignSearch}
+                  onChange={(e) => setCampaignSearch(e.target.value)}
+                  className="mb-3 w-full rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-violet-500/60 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  aria-label="Search campaigns"
+                />
+              )}
               <ul className="space-y-2">
-              {campaigns?.map((c) => (
+              {filteredCampaigns.map((c) => (
                 <li key={c.id} className="relative flex min-w-0 items-stretch gap-1 rounded-xl border border-zinc-800/80 transition-colors hover:border-zinc-700/80">
                   <Link
                     href={`/dashboard/workspace/${id}/campaign/${c.id}`}
@@ -505,7 +551,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
               />
             </>
           )}
-          {kolDeals?.length === 0 && !showKolForm && !editingKolId ? (
+          {filteredKolDeals.length === 0 && !showKolForm && !editingKolId ? (
             <div className="flex flex-col items-center rounded-xl border border-dashed border-zinc-700/80 py-12 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-800/60 ring-1 ring-zinc-700/50">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-500">
@@ -515,9 +561,9 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-zinc-400">No KOL deals yet</p>
-              <p className="mt-1 text-xs text-zinc-600">Track paid promotions and measure attribution</p>
-              {teamData?.canEdit && (
+              <p className="text-sm font-medium text-zinc-400">{kolSearch.trim() ? "No matching KOL deals" : "No KOL deals yet"}</p>
+              <p className="mt-1 text-xs text-zinc-600">{kolSearch.trim() ? "Try a different search" : "Track paid promotions and measure attribution"}</p>
+              {teamData?.canEdit && !kolSearch.trim() && (
                 <button
                   onClick={() => setShowKolForm(true)}
                   className="mt-4 text-sm font-medium text-violet-400 transition-colors hover:text-violet-300"
@@ -528,8 +574,18 @@ export default function WorkspacePage({ params }: { params: Promise<{ id: string
             </div>
           ) : (
             <div className="dashboard-panel-list min-h-0 flex-1">
+              {kolDeals && kolDeals.length > 2 && (
+                <input
+                  type="search"
+                  placeholder="Search KOL deals…"
+                  value={kolSearch}
+                  onChange={(e) => setKolSearch(e.target.value)}
+                  className="mb-3 w-full rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-violet-500/60 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  aria-label="Search KOL deals"
+                />
+              )}
               <ul className="space-y-2">
-                {kolDeals?.map((k) => (
+                {filteredKolDeals.map((k) => (
                 <li key={k.id} className="relative flex items-stretch gap-1 rounded-xl border border-zinc-800/60 transition-colors hover:border-zinc-700/70">
                   <Link
                     href={`/dashboard/workspace/${id}/kol/${k.id}`}

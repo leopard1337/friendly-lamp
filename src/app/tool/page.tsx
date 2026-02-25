@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import Squares from "@/components/Squares";
+import { AddToWatchlistButton } from "@/components/Watchlist";
+import { SolanaPrice } from "@/components/SolanaPrice";
+
+const Squares = dynamic(() => import("@/components/Squares").then((m) => m.default), { ssr: false });
 
 type Result = {
   holderCount: number;
@@ -35,12 +39,17 @@ export default function ToolPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Lookup failed");
+        const msg = data.error ?? "Lookup failed";
+        if (res.status === 429) setError("Too many requests. Please wait a moment and try again.");
+        else if (res.status === 400) setError(msg);
+        else if (msg.toLowerCase().includes("token not found") || msg.toLowerCase().includes("invalid")) setError(msg);
+        else if (msg.toLowerCase().includes("rpc") || msg.toLowerCase().includes("helius")) setError("Token not found or RPC error. Check the address and try again.");
+        else setError(msg);
         return;
       }
       setResult(data);
     } catch {
-      setError("Network error. Try again.");
+      setError("Network error. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -71,9 +80,12 @@ export default function ToolPage() {
             </span>
             Token Analytics
           </Link>
+          <div className="flex flex-1 justify-center">
+            <SolanaPrice />
+          </div>
           <Link
             href="/dashboard"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800/60 hover:text-zinc-100"
+            className="shrink-0 rounded-lg px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800/60 hover:text-zinc-100"
           >
             Dashboard
           </Link>
@@ -140,13 +152,11 @@ export default function ToolPage() {
                 </div>
               </dl>
             </div>
-            <div className="rounded-xl border border-violet-900/40 bg-violet-950/20 px-4 py-4 text-center">
-              <p className="text-sm text-zinc-300">
-                Want to track this token over time and see holder growth?
-              </p>
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-violet-900/40 bg-violet-950/20 px-4 py-4 sm:flex-row sm:justify-center">
+              <AddToWatchlistButton mint={mint.trim()} />
               <Link
                 href="/dashboard"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500"
+                className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500"
               >
                 Go to Dashboard
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -27,3 +27,26 @@ export function ListItemSkeleton() {
     </div>
   );
 }
+
+export function WorkspacePageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full rounded-2xl" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+    </div>
+  );
+}
